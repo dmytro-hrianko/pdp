@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload</title>
+</head>
+<body>
+    <h1>Upload File to S3</h1>
+    <input type="file" id="fileInput" />
+    <button onclick="uploadFile()">Upload</button>
+    <p id="status"></p>
+
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                document.getElementById('status').innerText = 'Please select a file first!';
+                return;
+            }
+
+            const fileName = file.name;  // Get the file name from the input
+            try {
+                // Step 1: Get the pre-signed URL from the backend
+                const response = await fetch('http://127.0.0.1:5000/generate-upload-url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ file_name: fileName })  // Send file name to backend
+                });
+
+                const result = await response.json();
+                if (result.upload_url) {
+                    // Step 2: Upload the file to S3 using the pre-signed URL
+                    const uploadResponse = await fetch(result.upload_url, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': "application/octet-stream",  // Use the file's MIME type
+                        },
+                        body: file,
+                    });
+
+                    if (uploadResponse.ok) {
+                        document.getElementById('status').innerText = 'File uploaded successfully!';
+                    } else {
+                        document.getElementById('status').innerText = 'Upload failed.';
+                    }
+                } else {
+                    document.getElementById('status').innerText = result.error || 'Error generating upload URL.';
+                }
+            } catch (error) {
+                document.getElementById('status').innerText = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
